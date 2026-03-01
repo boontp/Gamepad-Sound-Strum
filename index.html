@@ -3,161 +3,191 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gamepad Sound Strum v7</title>
+    <title>Gamepad Sound Strum v8</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         :root {
             --bg: #000;
-            --fret-y: #fff;
             --note-b: #00eeff;
-            --grey: #444;
+            --grey: #222;
         }
 
         body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background: var(--bg); color: #fff; font-family: sans-serif; overflow: hidden; touch-action: none; }
 
-        /* 1:3 Display Ratio Section */
-        #top-half { height: 33.33vh; display: flex; flex-direction: column; border-bottom: 2px solid #333; }
+        /* 1/3 Display Section */
+        #display-section { height: 33.33vh; display: flex; flex-direction: column; border-bottom: 2px solid #333; z-index: 10; background: #000; }
+        header { height: 25%; background: #111; display: flex; align-items: center; padding: 0 10px; border-bottom: 1px solid #333; justify-content: space-between; }
+        #fret-status { background: #222; padding: 2px 8px; border-radius: 4px; color: var(--note-b); font-family: monospace; font-size: 13px; }
         
-        header { height: 25%; background: #111; display: flex; align-items: center; padding: 0 15px; gap: 10px; border-bottom: 1px solid #222; }
-        #vol-slider { width: 100px; accent-color: var(--note-b); }
-        #fret-status { background: #222; padding: 2px 10px; border-radius: 4px; border: 1px solid #444; font-family: monospace; color: var(--note-b); font-size: 14px; min-width: 80px; text-align: center; }
+        #fret-container { height: 45%; background: #050505; overflow: hidden; position: relative; border-bottom: 1px solid #444; }
+        #fretboard { display: flex; position: absolute; transition: transform 0.2s ease; height: 100%; }
+        .fret { min-width: 80px; border-right: 1px solid #222; display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; position: relative; }
+        .fret-num { position: absolute; top: 2px; font-size: 9px; opacity: 0.5; }
+        .string-line { width: 100%; height: 1px; background: #333; position: relative; }
+        .note-dot { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; transition: 0.1s; border: 1px solid transparent; pointer-events: none; }
+        .fret-hit { opacity: 1 !important; transform: scale(1.4); background: #fff !important; border: 2px solid currentColor; font-weight: bold; text-shadow: none; z-index: 5; }
 
-        #fret-container { height: 42%; background: #050505; overflow: hidden; position: relative; border-bottom: 1px solid #444; }
-        #fretboard { display: flex; position: absolute; transition: transform 0.3s ease; height: 100%; }
-        .fret { min-width: 90px; border-right: 1px solid #222; display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; position: relative; }
-        .fret-num { position: absolute; top: 2px; font-size: 10px; opacity: 0.7; }
-        .string-line { width: 100%; height: 1px; background: #222; position: relative; }
-        
-        .note-dot { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; transition: 0.1s; border: 1px solid transparent; }
-        .fret-hit { 
-            opacity: 1 !important; 
-            transform: scale(1.35); 
-            background: #fff !important; 
-            border: 2px solid currentColor;
-            /* V7: 50% Transparent Text Shadow */
-            text-shadow: -1px -1px 0 rgba(0,0,0,0.5), 1px -1px 0 rgba(0,0,0,0.5), -1px 1px 0 rgba(0,0,0,0.5), 1px 1px 0 rgba(0,0,0,0.5);
-            z-index: 10;
-        }
-
-        #piano-container { height: 33%; background: #111; display: flex; overflow: hidden; border-top: 1px solid #fff; }
-        .piano-key { flex: 1; min-width: 45px; height: 100%; border: 1px solid #000; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5px; font-size: 11px; font-weight: bold; box-sizing: border-box; transition: background 0.1s; }
+        #piano-container { height: 30%; background: #111; display: flex; overflow: hidden; border-top: 1px solid #fff; }
+        .piano-key { flex: 1; min-width: 40px; height: 100%; border: 1px solid #000; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px; font-size: 10px; font-weight: bold; }
         .white { background: #fff; color: #000; }
-        .black { background: #222; color: #fff; height: 60%; z-index: 2; margin: 0 -15px; min-width: 30px; }
-
-        /* 2:3 Input Ratio Section */
-        #bottom-half { height: 66.66vh; display: grid; grid-template-columns: 1fr 1fr; background: #080808; }
-        .side { position: relative; display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; padding: 20px; }
-        
-        .trig-stack { display: flex; flex-direction: column; gap: 10px; width: 80%; }
-        .trig-btn { height: 50px; border: 2px solid #555; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #111; font-weight: bold; cursor: pointer; user-select: none; }
-        
-        .analog-base { width: 220px; height: 220px; background: #151515; border-radius: 50%; border: 4px solid #333; position: relative; display: flex; align-items: center; justify-content: center; cursor: crosshair; touch-action: none; }
-        #analog-stick { width: 80px; height: 80px; background: #fff; border-radius: 50%; position: absolute; box-shadow: 0 0 20px #fff; z-index: 10; pointer-events: none; }
-        
-        .btn-grid { display: grid; grid-template-areas: ". tri ." "sq . cir" ". x ."; gap: 20px; width: 220px; height: 220px; }
-        .joy-btn { width: 70px; height: 70px; border-radius: 50%; border: 4px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 28px; background: #111; cursor: pointer; user-select: none; }
-
-        .active-trig { background: #fff !important; color: #000 !important; }
-        .playable-fret { box-shadow: inset 0 0 20px rgba(255,255,255,0.2); }
-        .playable-key { border: 3px solid currentColor !important; }
-        /* V7: Lightgray Hit state */
+        .black { background: #222; color: #fff; height: 60%; z-index: 2; margin: 0 -12px; min-width: 24px; }
+        .playable-key { border: 5px solid currentColor !important; }
         .piano-hit { background: lightgray !important; color: #000 !important; }
+
+        /* 2/3 Controller Section */
+        #controller-section { height: 66.66vh; display: flex; background: #0a0a0a; position: relative; }
+        .ctrl-half { flex: 1; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 15px 5px; box-sizing: border-box; }
+        
+        .trig-stack { width: 90%; display: flex; flex-direction: column; gap: 8px; }
+        .trig-btn { height: 6vh; border: 2px solid #555; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #111; font-weight: bold; font-size: 14px; user-select: none; }
+        .active-trig { background: #fff !important; color: #000 !important; }
+
+        .analog-base { width: 180px; height: 180px; background: #151515; border-radius: 50%; border: 4px solid #333; position: relative; display: flex; align-items: center; justify-content: center; touch-action: none; }
+        #analog-stick { width: 70px; height: 70px; background: #fff; border-radius: 50%; position: absolute; box-shadow: 0 0 20px #fff; pointer-events: none; }
+
+        .btn-grid { display: grid; grid-template-areas: ". tri ." "sq . cir" ". x ."; gap: 15px; }
+        .joy-btn { width: 65px; height: 65px; border-radius: 50%; border: 4px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 24px; background: #111; user-select: none; }
+
+        /* Hamburger Menu */
+        #menu-panel { position: fixed; top: 0; right: -280px; width: 260px; height: 100%; background: #111; border-left: 1px solid #444; transition: 0.3s; z-index: 1000; overflow-y: auto; padding: 20px; }
+        #menu-panel.open { right: 0; }
+        .menu-item { padding: 12px; border-bottom: 1px solid #222; cursor: pointer; font-size: 13px; }
+        .menu-item:hover, .menu-item.active { background: #222; color: var(--note-b); }
+
+        #vol-slider { width: 80px; accent-color: var(--note-b); }
     </style>
 </head>
 <body>
 
-<div id="top-half">
+<div id="display-section">
     <header>
-        <div style="cursor:pointer; font-size: 20px;">☰</div>
         <div id="fret-status">FRET 0</div>
-        <div style="flex-grow:1; text-align:center; font-size:11px; font-weight:bold;" id="mode-text">GAMEPAD SOUND STRUM</div>
         <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="0.5">
+        <div id="hamburger" style="font-size:24px; cursor:pointer;">☰</div>
     </header>
     <div id="fret-container"><div id="fretboard"></div></div>
     <div id="piano-container"></div>
 </div>
 
-<div id="bottom-half">
-    <div class="side">
-        <div class="trig-stack">
-            <div id="ui-L2" class="trig-btn" onmousedown="handleExclusive('L2')">L2 (V)</div>
-            <div id="ui-L1" class="trig-btn" onmousedown="handleExclusive('L1')">L1 (C)</div>
-        </div>
-        <div id="analog-area" class="analog-base"><div id="analog-stick"></div></div>
+<div id="controller-section">
+    <div id="menu-panel">
+        <h3 style="margin:0 0 15px 0; border-bottom:1px solid #444;">Sound Engine</h3>
+        <div id="sound-list"></div>
     </div>
-    <div class="side">
+
+    <div class="ctrl-half" style="border-right: 1px solid #111;">
         <div class="trig-stack">
-            <div id="ui-R2" class="trig-btn" onmousedown="handleExclusive('R2')">R2 (N)</div>
-            <div id="ui-R1" class="trig-btn" onmousedown="handleExclusive('R1')">R1 (B)</div>
+            <div id="ui-L2" class="trig-btn" onpointerdown="handleExclusive('L2')">L2 (V)</div>
+            <div id="ui-L1" class="trig-btn" onpointerdown="handleExclusive('L1')">L1 (C)</div>
+        </div>
+        <div id="analog-area" class="analog-base">
+            <div id="analog-stick"></div>
+        </div>
+    </div>
+
+    <div class="ctrl-half">
+        <div class="trig-stack">
+            <div id="ui-R2" class="trig-btn" onpointerdown="handleExclusive('R2')">R2 (N)</div>
+            <div id="ui-R1" class="trig-btn" onpointerdown="handleExclusive('R1')">R1 (B)</div>
         </div>
         <div class="btn-grid">
-            <div class="joy-btn" id="ui-tri" style="grid-area:tri; border-color:#4ef037" onmousedown="play(2)">△</div>
-            <div class="joy-btn" id="ui-sq"  style="grid-area:sq; border-color:#e034e0" onmousedown="play(1)">□</div>
-            <div class="joy-btn" id="ui-cir" style="grid-area:cir; border-color:#f03737" onmousedown="play(3)">○</div>
-            <div class="joy-btn" id="ui-x"   style="grid-area:x; border-color:#374bf0" onmousedown="play(0)">✕</div>
+            <div class="joy-btn" style="grid-area:tri; border-color:#4ef037" onpointerdown="play(2)">△</div>
+            <div class="joy-btn" style="grid-area:sq;  border-color:#e034e0" onpointerdown="play(1)">□</div>
+            <div class="joy-btn" style="grid-area:cir; border-color:#f03737" onpointerdown="play(3)">○</div>
+            <div class="joy-btn" style="grid-area:x;   border-color:#374bf0" onpointerdown="play(0)">✕</div>
         </div>
     </div>
 </div>
 
 <div id="start-screen" style="position:fixed; inset:0; background:#000; z-index:2000; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:20px">
-    <h1 style="letter-spacing:5px">GAMEPAD SOUND STRUM</h1>
-    <button onclick="init()" style="padding:20px 60px; font-size:24px; color:#fff; border:2px solid #fff; background:none; border-radius:50px; cursor:pointer">START STRUMMING</button>
+    <h2 style="letter-spacing:3px">GAMEPAD SOUND STRUM v8</h2>
+    <button onclick="init()" style="padding:20px 60px; font-size:20px; color:#fff; border:2px solid #fff; background:none; border-radius:50px;">INITIALIZE ENGINE</button>
 </div>
 
 <script>
     const COLORS = ["#e63946", "#f3722c", "#f8961e", "#f9c74f", "#d4d700", "#90be6d", "#43aa8b", "#4d908e", "#577590", "#277da1", "#480ca8", "#b5179e"];
     const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-    const STRINGS = [40, 45, 50, 55]; // E2, A2, D3, G3
+    const STRINGS = [40, 45, 50, 55]; 
     
     let synth, currentFret = 0, isStarted = false;
     let input = { w:0, a:0, s:0, d:0 };
     let toggles = { L1:false, L2:false, R1:false, R2:false };
-    let mouseDir = { x: 0, y: 0 };
-    let isDragging = false;
+    let analogPointerId = null;
+    let stickPos = { x: 0, y: 0 };
+
+    const SOUNDS = [
+        { name: "1. Fat Saw (PolySynth)", type: "PolySynth", opts: { oscillator: { type: "fatsawtooth" } } },
+        { name: "2. Deep Sub (MonoSynth)", type: "MonoSynth", opts: { oscillator: { type: "sine" }, envelope: { attack: 0.1 } } },
+        { name: "3. FM Metal", type: "FMSynth", opts: { harmonicity: 3, modulationIndex: 10 } },
+        { name: "4. Square Lead", type: "PolySynth", opts: { oscillator: { type: "square" } } },
+        { name: "5. AM Organ", type: "AMSynth", opts: { oscillator: { type: "sine" } } },
+        { name: "6. Pluck Mono", type: "MonoSynth", opts: { envelope: { attack: 0.005, decay: 0.1, sustain: 0 } } },
+        { name: "7. Soft Triangle", type: "PolySynth", opts: { oscillator: { type: "triangle" } } },
+        { name: "8. FM Electric", type: "FMSynth", opts: { modulationIndex: 2 } },
+        { name: "9. Hard Pulse", type: "MonoSynth", opts: { oscillator: { type: "pulse" } } },
+        { name: "10. Sine Piano", type: "PolySynth", opts: { envelope: { attack: 0.02, release: 1.5 } } }
+    ];
 
     function init() {
         Tone.start();
-        synth = new Tone.PolySynth().toDestination();
+        setSound(0);
+        document.getElementById('vol-slider').addEventListener('input', e => Tone.Destination.volume.value = Tone.gainToDb(e.target.value));
         Tone.Destination.volume.value = Tone.gainToDb(0.5);
-        document.getElementById('vol-slider').addEventListener('input', e => {
-            Tone.Destination.volume.value = Tone.gainToDb(parseFloat(e.target.value));
-        });
         document.getElementById('start-screen').style.display = 'none';
-        setupAnalogTouch();
+        setupMultitouch();
+        populateMenu();
         isStarted = true;
         loop();
     }
 
-    // Analog Drag Implementation
-    function setupAnalogTouch() {
-        const area = document.getElementById('analog-area');
-        const handleMove = (e) => {
-            if (!isDragging) return;
-            const rect = area.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            const touchX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-            const touchY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-            
-            let dx = (touchX - centerX) / (rect.width / 2);
-            let dy = (touchY - centerY) / (rect.height / 2);
-            
-            // Limit to circle
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist > 1) { dx /= dist; dy /= dist; }
-            
-            mouseDir.x = dx; mouseDir.y = dy;
-        };
-
-        area.addEventListener('mousedown', () => isDragging = true);
-        area.addEventListener('touchstart', (e) => { isDragging = true; e.preventDefault(); });
-        window.addEventListener('mousemove', handleMove);
-        window.addEventListener('touchmove', handleMove, {passive: false});
-        window.addEventListener('mouseup', () => { isDragging = false; mouseDir = {x:0, y:0}; });
-        window.addEventListener('touchend', () => { isDragging = false; mouseDir = {x:0, y:0}; });
+    function populateMenu() {
+        const list = document.getElementById('sound-list');
+        SOUNDS.forEach((s, i) => {
+            const div = document.createElement('div');
+            div.className = 'menu-item' + (i===0?' active':'');
+            div.innerText = s.name;
+            div.onclick = () => setSound(i);
+            list.appendChild(div);
+        });
+        document.getElementById('hamburger').onclick = () => document.getElementById('menu-panel').classList.toggle('open');
     }
 
-    // Build UI
+    function setSound(idx) {
+        if(synth) synth.dispose();
+        synth = new Tone[SOUNDS[idx].type](SOUNDS[idx].opts).toDestination();
+        document.querySelectorAll('.menu-item').forEach((el, i) => el.classList.toggle('active', i===idx));
+    }
+
+    function setupMultitouch() {
+        const area = document.getElementById('analog-area');
+        area.onpointerdown = (e) => {
+            analogPointerId = e.pointerId;
+            area.setPointerCapture(e.pointerId);
+            updateStick(e);
+        };
+        area.onpointermove = (e) => {
+            if (e.pointerId === analogPointerId) updateStick(e);
+        };
+        area.onpointerup = area.onpointercancel = (e) => {
+            if (e.pointerId === analogPointerId) {
+                analogPointerId = null;
+                stickPos = { x: 0, y: 0 };
+            }
+        };
+
+        function updateStick(e) {
+            const rect = area.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            let dx = (e.clientX - cx) / (rect.width / 2);
+            let dy = (e.clientY - cy) / (rect.height / 2);
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > 1) { dx /= dist; dy /= dist; }
+            stickPos = { x: dx, y: dy };
+        }
+    }
+
+    // Build Fretboard
     const fb = document.getElementById('fretboard');
     for(let f=0; f<=22; f++){
         let div = document.createElement('div'); div.className='fret'; div.id=`fcol-${f}`;
@@ -169,12 +199,13 @@
             let m = STRINGS[s]+f;
             dot.innerText = NOTES[m%12];
             dot.style.color = COLORS[m%12];
-            dot.style.opacity = NOTES[m%12].includes('#') ? "0.25" : "0.5";
+            dot.style.opacity = NOTES[m%12].includes('#') ? "0.2" : "0.4";
             line.appendChild(dot); div.appendChild(line);
         }
         fb.appendChild(div);
     }
 
+    // Build Piano
     const pCon = document.getElementById('piano-container');
     for(let m=40; m<=87; m++){
         let k = document.createElement('div');
@@ -192,15 +223,15 @@
         toggles[id] = !current;
     }
 
-    window.addEventListener('keydown', e => {
+    window.onkeydown = e => {
         const k = e.key.toLowerCase();
-        if(input.hasOwnProperty(k)) input[k] = 1;
+        if(['w','a','s','d'].includes(k)) input[k] = 1;
         if(k==='c') handleExclusive('L1'); if(k==='v') handleExclusive('L2');
         if(k==='b') handleExclusive('R1'); if(k==='n') handleExclusive('R2');
         const pMap = {'h':0, 'j':1, 'k':2, 'l':3};
         if(pMap[k] !== undefined) play(pMap[k]);
-    });
-    window.addEventListener('keyup', e => { if(input.hasOwnProperty(e.key.toLowerCase())) input[e.key.toLowerCase()] = 0; });
+    };
+    window.onkeyup = e => { if(['w','a','s','d'].includes(e.key.toLowerCase())) input[e.key.toLowerCase()] = 0; };
 
     function play(sIdx) {
         if(!isStarted) return;
@@ -210,16 +241,13 @@
         document.getElementById(`dot-${sIdx}-${currentFret}`).classList.add('fret-hit');
         document.getElementById(`pk-${midi}`).classList.add('piano-hit');
 
-        const fretEl = document.getElementById(`fcol-${currentFret}`);
-        const rect = fretEl.getBoundingClientRect();
-        if(rect.right > window.innerWidth || rect.left < 0) {
-            fb.style.transform = `translateX(-${Math.max(0, (currentFret-2)*90)}px)`;
-        }
+        const offset = Math.max(0, (currentFret-2)*80);
+        fb.style.transform = `translateX(-${offset}px)`;
     }
 
     function loop() {
         const gp = navigator.getGamepads()[0];
-        let dir = 0, l1=toggles.L1, l2=toggles.L2, r1=toggles.R1, r2=toggles.R2;
+        let l1=toggles.L1, l2=toggles.L2, r1=toggles.R1, r2=toggles.R2;
         let axX = 0, axY = 0;
 
         if(gp){
@@ -227,29 +255,29 @@
             axX = gp.axes[0]; axY = gp.axes[1];
             [0,1,2,3].forEach(i => { if(gp.buttons[i].pressed) play([0,3,1,2][i]); });
         } else {
-            // Combine Keyboard + Mouse Drag
-            axX = (input.d - input.a) || mouseDir.x;
-            axY = (input.s - input.w) || mouseDir.y;
+            axX = (input.d - input.a) || stickPos.x;
+            axY = (input.s - input.w) || stickPos.y;
         }
 
-        if(Math.abs(axX)>0.3 || Math.abs(axY)>0.3) {
-            if(Math.abs(axX)>Math.abs(axY)) dir = axX > 0 ? 2 : 4;
-            else dir = axY > 0 ? 3 : 1;
+        // Fret Logic: Left=1, Down=2, Right=3, Up=4
+        let dir = 0;
+        if(Math.abs(axX) > 0.4 || Math.abs(axY) > 0.4) {
+            if(Math.abs(axX) > Math.abs(axY)) dir = axX < 0 ? 1 : 3;
+            else dir = axY > 0 ? 2 : 4;
         }
-        document.getElementById('analog-stick').style.transform = `translate(${axX*60}px, ${axY*60}px)`;
 
-        let base = 0, label = "OPEN";
-        if(r2) { base = 16; label = "R2"; } 
-        else if(l2) { base = 12; label = "L2"; } 
-        else if(r1) { base = 8; label = "R1"; } 
-        else if(l1) { base = 4; label = "L1"; }
+        document.getElementById('analog-stick').style.transform = `translate(${axX*50}px, ${axY*50}px)`;
+
+        let base = 0, label = "O";
+        if(r2) { base = 16; label = "R2"; } else if(l2) { base = 12; label = "L2"; } 
+        else if(r1) { base = 8; label = "R1"; } else if(l1) { base = 4; label = "L1"; }
         
         currentFret = dir > 0 ? base + dir : 0;
         document.getElementById('fret-status').innerText = `${label} | FRET ${currentFret}`;
 
         document.querySelectorAll('.playable-fret, .playable-key').forEach(el => el.classList.remove('playable-fret', 'playable-key'));
         document.getElementById(`fcol-${currentFret}`).classList.add('playable-fret');
-        STRINGS.forEach(s => { const pk = document.getElementById(`pk-${s+currentFret}`); if(pk) pk.classList.add('playable-key'); });
+        STRINGS.forEach(s => document.getElementById(`pk-${s+currentFret}`)?.classList.add('playable-key'));
 
         ['L1','L2','R1','R2'].forEach(id => document.getElementById(`ui-${id}`).classList.toggle('active-trig', (id==='L1'?l1:id==='L2'?l2:id==='R1'?r1:r2)));
         requestAnimationFrame(loop);
