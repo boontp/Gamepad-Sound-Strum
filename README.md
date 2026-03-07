@@ -2,6 +2,7 @@
 Gamepad Sound Strum
 
 It work in progress
+https://boontp.github.io/Gamepad-Sound-Strum/
 
 now it have only 4 line bass mode
 
@@ -14,3 +15,4 @@ use HJKL for play string
 use CVBN to modify fret
 
 support controller
+Piano part and Fret part is for demonstate key only. not for press
